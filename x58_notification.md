@@ -14,14 +14,18 @@
 
 ### [GLPubBus](https://github.com/Glow-Inc/GLPubSub/blob/master/README.md)
 
-用作者的话来说，这仅仅是对通知中心的一个封装，简化了通知的订阅以及发布，只是对NSObject的一个分类。内部通过runtime添加一个字典属性，字典以通知名为key，这个通知下的所有订阅者的集合为value，这样做并没有解决对同一个通知订阅多次产生的问题，不过通过block可以将每次的订阅回调分别处理。
+用作者的话来说，这仅仅是对通知中心的一个封装，简化了通知的订阅以及发布，只有对NSObject的一个分类。
 
-使用一个Event类封装通知相关的数据，封装订阅通知的核心代码如下：
+内部通过runtime添加一个字典属性，字典以通知名为key，这个通知下的所有订阅者的集合为value，这样做并没有解决对同一个通知订阅多次产生的问题，不过通过block可以将每次的订阅回调分别处理。
+
+使用一个`GLEvent类`封装通知相关的数据，封装订阅通知的核心代码如下：
 
 ```objective-c
 - (id)subscribe:(NSString *)eventName obj:(id)obj handler:(GLEventHandler)handler {
     id observer =  [[NSNotificationCenter defaultCenter] addObserverForName:eventName object:obj queue:_pubSubQueue usingBlock:^(NSNotification *note) {
-        GLEvent *event = [[GLEvent alloc] initWithName:eventName obj:note.object data:[note.userInfo objectForKey:kGLPubSubDataKey]];
+        GLEvent *event = [[GLEvent alloc] initWithName:eventName
+                          obj:note.object
+                          data:[note.userInfo objectForKey:kGLPubSubDataKey]];
         handler(event);
     }];
     NSMutableDictionary *subscriptions = (NSMutableDictionary *)objc_getAssociatedObject(self, &kGLPubSubSubscriptionsKey);
@@ -73,9 +77,14 @@
 }
 ```
 
-在NSObject的一个分类里面，作者将调用类的是实例作为“订阅者”，上面说了，Controller和”订阅者“之间是弱引用关系，这样”订阅者“销毁的时候就会释放Controller，而在Controller的`dealloc`方法中，作者用来移除通知中心中的订阅者，使用一个中间类弱引用这样就可以达到自动释放订阅：
+这里面的`MCSNotificationKey`是一个私有类，根据通知名称以及订阅者生成一个唯一的key。
+
+另外，为NSObject提供一个属性，使得每一个NSObject的实例都可以使用这个NoticeController。
+
+上面说了，NoticeController和”订阅者“之间是弱引用关系，这样”订阅者“销毁的时候就会释放NoticeController，而在NoticeController的`dealloc`方法中，作者用来移除通知中心中的订阅者，使用一个中间类弱引用这样就可以达到自动释放订阅：
 
 ```objective-c
+// in MCSNotificationController.m
 - (void)dealloc{
   for (MCSNotificationKey *key in _mapNotificationKeyToToken) {
     id<NSObject> token = _mapNotificationKeyToToken[key];
