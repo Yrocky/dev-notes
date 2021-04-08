@@ -69,6 +69,9 @@ NSObject的分类提供了以下performSelector方法:
     [self performSelector:@selector(log) withObject:nil afterDelay:2];
     NSLog(@"after performSelector:%@",[NSRunLoop currentRunLoop]);
 }
+- (void) log{
+  // ...
+}
 ```
 
 通过日志可以看出来，确实是为当前线程添加了一个NSTimer，不过这里的currentRunLoop却比较简单，因为这个是当前thread1线程的runloop，非main-thread的runloop。
@@ -86,7 +89,10 @@ NSObject的分类提供了以下performSelector方法:
 }
 ```
 
-上面的run-1和run-2方法都可以运行当前runloop，区别是：1️⃣如果在run-1处运行，那么最后一个NSLog(@"after….")要在控制器的log方法执行完成之后才会打印（也就是当前runloop执行完成之后）；2️⃣如果是在run-2处运行，那么会紧接着NSLog(@"before...")一起打印，而不用等到2s以后。
+上面的run-1和run-2方法都可以运行当前runloop，区别是：
+
+* 1️⃣如果在run-1处运行，那么最后一个NSLog(@"after….")要在控制器的log方法执行完成之后才会打印（也就是当前runloop执行完成之后）；
+* 2️⃣如果是在run-2处运行，那么会紧接着NSLog(@"before...")一起打印，而不用等到2s以后。
 
 这个就是因为：**runloop其实是一个while(1)的循环，内部不break，他就会一直执行，导致后面的代码执行不到**。
 
